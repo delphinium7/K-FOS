@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>K-FOS | Temporary Employee Login</title>
+    <title>K-FOS | Employee Login</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -21,8 +21,13 @@
         }
 
         body {
-            font-family: Inter, -apple-system, BlinkMacSystemFont,
-                "Segoe UI", sans-serif;
+            font-family:
+                Inter,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
             color: #18212d;
         }
 
@@ -30,6 +35,7 @@
         .login-background {
             min-height: 100vh;
             min-height: 100dvh;
+
             background:
                 radial-gradient(
                     ellipse at 12% 10%,
@@ -54,10 +60,12 @@
             width: 100%;
             min-height: 100vh;
             min-height: 100dvh;
+
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+
             padding: 48px 20px;
         }
 
@@ -82,11 +90,12 @@
             color: #667085;
         }
 
-        /* Frosted glass card */
+        /* Apple-style frosted glass card */
         .glass-panel {
             width: 100%;
             max-width: 580px;
             padding: 42px;
+
             border-radius: 30px;
 
             background: rgba(255, 255, 255, 0.38);
@@ -101,7 +110,7 @@
             backdrop-filter: blur(22px);
         }
 
-        /* Heading */
+        /* Login heading */
         .login-heading {
             margin: 0;
             font-size: 27px;
@@ -110,7 +119,7 @@
             line-height: 1.3;
         }
 
-        /* Form spacing */
+        /* Login form */
         .login-form {
             display: flex;
             flex-direction: column;
@@ -135,10 +144,12 @@
             display: block;
             width: 100%;
             min-height: 52px;
+
             padding: 13px 19px;
             border-radius: 999px;
 
             background: rgba(255, 255, 255, 0.48);
+
             border: 1px solid rgba(255, 255, 255, 0.85);
 
             box-shadow:
@@ -161,6 +172,7 @@
         .glass-input:focus {
             outline: 2px solid rgba(173, 64, 116, 0.42);
             outline-offset: 2px;
+
             background: rgba(255, 255, 255, 0.72);
         }
 
@@ -169,7 +181,7 @@
             display: flex;
             align-items: center;
             gap: 11px;
-            cursor: pointer;
+
             font-size: 14px;
             color: #343b45;
         }
@@ -178,8 +190,17 @@
             width: 19px;
             height: 19px;
             margin: 0;
+
             accent-color: #bd477f;
-            cursor: pointer;
+        }
+
+        .remember-checkbox:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .remember-text {
+            opacity: 0.65;
         }
 
         /* Sign In button */
@@ -203,24 +224,55 @@
             font-size: 16px;
             font-weight: 650;
 
-            box-shadow: 0 5px 15px rgba(174, 59, 108, 0.12);
+            box-shadow:
+                0 5px 15px rgba(174, 59, 108, 0.12);
+
+            cursor: pointer;
+
+            transition:
+                opacity 0.2s ease,
+                transform 0.2s ease;
         }
 
-        .login-button:disabled {
-            cursor: not-allowed;
-            opacity: 0.82;
+        .login-button:hover {
+            opacity: 0.92;
         }
 
-        /* Temporary preview notice */
+        .login-button:active {
+            transform: scale(0.99);
+        }
+
+        .login-button:focus-visible {
+            outline: 2px solid #933e70;
+            outline-offset: 3px;
+        }
+
+        /* Validation error */
+        .login-error {
+            margin: 0;
+            padding: 12px 16px;
+
+            border-radius: 14px;
+            border: 1px solid rgba(190, 60, 90, 0.20);
+
+            background: rgba(255, 236, 240, 0.75);
+
+            color: #9f1239;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Temporary prototype notice */
         .preview-note {
             margin: 28px 0 0;
+
             text-align: center;
             font-size: 12px;
             line-height: 1.6;
             color: #6b6470;
         }
 
-        /* Tablet / mobile */
+        /* Mobile responsiveness */
         @media (max-width: 640px) {
             .login-page {
                 padding: 30px 16px;
@@ -261,27 +313,52 @@
 
         <!-- K-FOS branding -->
         <header class="login-brand">
-            <h1 class="brand-title">K-FOS</h1>
+
+            <h1 class="brand-title">
+                K-FOS
+            </h1>
 
             <p class="brand-subtitle">
                 Factory Operating System
             </p>
+
         </header>
 
-        <!-- Temporary login preview -->
+        <!-- Login glass card -->
         <section
             class="glass-panel"
             aria-labelledby="login-heading"
         >
 
-            <h2 id="login-heading" class="login-heading">
+            <h2
+                id="login-heading"
+                class="login-heading"
+            >
                 Employee Login
             </h2>
 
-            <div class="login-form">
+            <!-- Functional local test login form -->
+            <form
+                class="login-form"
+                method="POST"
+                action="{{ route('kfos.demo.login.submit') }}"
+            >
+
+                @csrf
+
+                <!-- Login validation errors -->
+                @if ($errors->any())
+                    <p
+                        class="login-error"
+                        role="alert"
+                    >
+                        {{ $errors->first() }}
+                    </p>
+                @endif
 
                 <!-- Employee ID -->
                 <div class="login-field-group">
+
                     <label
                         for="employee-id"
                         class="login-label"
@@ -291,15 +368,21 @@
 
                     <input
                         id="employee-id"
+                        name="employee_id"
                         class="glass-input"
                         type="text"
                         placeholder="Enter Employee ID"
-                        autocomplete="off"
+                        value="{{ old('employee_id') }}"
+                        autocomplete="username"
+                        maxlength="100"
+                        required
                     >
+
                 </div>
 
                 <!-- Password -->
                 <div class="login-field-group">
+
                     <label
                         for="password"
                         class="login-label"
@@ -309,38 +392,46 @@
 
                     <input
                         id="password"
+                        name="password"
                         class="glass-input"
                         type="password"
                         placeholder="Enter password"
-                        autocomplete="off"
+                        autocomplete="current-password"
+                        required
                     >
+
                 </div>
 
                 <!-- Remember me -->
                 <label class="remember-row">
+
                     <input
                         class="remember-checkbox"
                         type="checkbox"
+                        disabled
+                        title="Remember me is not implemented in this prototype"
                     >
 
-                    <span>Remember me</span>
+                    <span class="remember-text">
+                        Remember me
+                    </span>
+
                 </label>
 
-                <!-- Disabled until authentication is implemented -->
+                <!-- Functional Sign In button -->
                 <button
-                    type="button"
+                    type="submit"
                     class="login-button"
-                    disabled
-                    title="Authentication is not implemented"
                 >
                     Sign In
                 </button>
 
-            </div>
+            </form>
 
+            <!-- Development notice -->
             <p class="preview-note">
-                Temporary preview only — final approved login
-                page pending.
+                Local authentication prototype —
+                not for production use.
             </p>
 
         </section>
