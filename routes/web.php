@@ -1,3 +1,4 @@
+
 <?php
 
 use App\Livewire\DevCounter;
@@ -11,8 +12,7 @@ Route::get('/', function () {
 if (App::environment('local')) {
     Route::get('/kfos-dev-test', DevCounter::class);
 
-    Route::view(
-        '/kfos-shell-preview',
-        'kfos-shell-preview'
-    );
+    Route::view('/kfos-login-preview', 'kfos-login-preview');
+
+    Route::view('/kfos-shell-preview', 'kfos-shell-preview');
 }
