@@ -35,4 +35,20 @@ Route::prefix('kfos-auth-stage')
             Route::post('/logout-all', [KfosRememberBrowserController::class, 'logoutAll'])
                 ->name('logout.all');
         });
+
+        // Step 5S: strictly local-only UI integration preview.
+        Route::get('/ui/login', function () {
+            if (\Illuminate\Support\Facades\Auth::guard('web')->check()) {
+                return redirect()->route('kfos.auth.stage.ui.home');
+            }
+            return view('auth.kfos-stage-login');
+        })->name('ui.login');
+
+        Route::middleware([
+            KfosRestoreRememberedSession::class,
+            'auth:web',
+            'kfos.account',
+        ])->get('/ui/home', function () {
+            return view('auth.kfos-stage-home');
+        })->name('ui.home');
     });

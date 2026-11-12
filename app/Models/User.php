@@ -48,4 +48,18 @@ class User extends Authenticatable
     'is_development_only' => 'boolean',
     'session_version' => 'integer',
 ];
+
+    /** Current database-backed K-FOS permission; never use the legacy dev-admin flag. */
+    public function hasKfosPermission(string $code): bool
+    {
+        return app(\App\Services\Security\KfosAuthorization::class)
+            ->allows($this, $code);
+    }
+
+    public function isKfosSystemAdministrator(): bool
+    {
+        return app(\App\Services\Security\KfosAuthorization::class)
+            ->isSystemAdministrator($this);
+    }
+
 }

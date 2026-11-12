@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class KfosSessionIntegrationTest extends TestCase
@@ -48,19 +49,39 @@ class KfosSessionIntegrationTest extends TestCase
         );
     }
 
+    private function assertFixtureTransaction(): void
+    {
+        $this->assertSame(
+            'kfos_test',
+            DB::connection()->getDatabaseName()
+        );
+
+        $this->assertGreaterThan(
+            0,
+            DB::connection()->transactionLevel(),
+            'STOP: Fixture changes require an active transaction.'
+        );
+    }
+
     private function createAdministrator(): User
     {
-        $user = User::query()->create([
+        $this->assertFixtureTransaction();
+
+        $user = User::query()
+            ->where('login_id', 'KFOS_ADMIN')
+            ->first();
+
+        if ($user === null) {
+            $user = new User();
+        }
+
+        // Test changes are protected by DatabaseTransactions.
+        $user->forceFill([
             'login_id' => 'KFOS_ADMIN',
             'name' => 'Synthetic Administrator',
             'email' => null,
             'employee_id' => null,
-            'password' => Hash::make(
-                self::TEST_PASSWORD
-            ),
-        ]);
-
-        $user->forceFill([
+            'password' => Hash::make(self::TEST_PASSWORD),
             'is_active' => true,
             'is_system_admin' => true,
             'is_development_only' => true,
@@ -72,9 +93,12 @@ class KfosSessionIntegrationTest extends TestCase
 
     private function createOrdinaryUser(): User
     {
+        $this->assertFixtureTransaction();
+
+        $loginId = 'T5T_'.strtoupper(Str::random(12));
         $employeeId = DB::table('employees')
             ->insertGetId([
-                'employee_id' => 'TEST_SESSION_USER',
+                'employee_id' => $loginId,
                 'name' => 'Synthetic Test Operator',
                 'position' => 'Test Operator',
                 'is_active' => true,
@@ -84,14 +108,14 @@ class KfosSessionIntegrationTest extends TestCase
 
         DB::table('employee_id_reservations')->insert([
             'employee_id' => $employeeId,
-            'reserved_employee_id' => 'TEST_SESSION_USER',
+            'reserved_employee_id' => $loginId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $user = User::query()->create([
             'employee_id' => $employeeId,
-            'login_id' => 'TEST_SESSION_USER',
+            'login_id' => $loginId,
             'name' => 'Synthetic Test Operator',
             'email' => null,
             'password' => Hash::make(

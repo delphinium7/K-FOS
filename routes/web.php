@@ -374,3 +374,23 @@ if (
 ) {
     require __DIR__.'/kfos-auth-stage.php';
 }
+
+/*
+ * K-FOS STEP 5AH — LOCAL-ONLY USER MANAGEMENT ROUTE MOUNT
+ * OFF by default. This must NOT be used as production route activation.
+ * Requires an explicit local-only flag, app debug, existing stage guard,
+ * normal web CSRF/session middleware, web authentication and kfos.account.
+ * Real production activation remains subject to separate security review.
+ */
+if (app()->environment('local')
+    && config('app.debug')
+    && filter_var(env('KFOS_USER_MANAGEMENT_LOCAL_STAGE', false), FILTER_VALIDATE_BOOLEAN)) {
+    \Illuminate\Support\Facades\Route::middleware([
+        \App\Http\Middleware\EnsureKfosAuthStageLocal::class,
+        \App\Http\Middleware\KfosRestoreRememberedSession::class,
+    ])->group(static function (): void {
+        require __DIR__.'/kfos-security-users.php';
+        require __DIR__.'/kfos-security-ui.php';
+        require __DIR__.'/kfos-security-roles.php';
+    });
+}

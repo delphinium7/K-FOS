@@ -4,13 +4,29 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class KfosAccountAccessTest extends TestCase
 {
+    use DatabaseTransactions;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->assertSame(
+            'kfos_test',
+            DB::connection()->getDatabaseName(),
+            'STOP: Account access tests require kfos_test.'
+        );
+
+        $this->assertGreaterThan(
+            0,
+            DB::connection()->transactionLevel(),
+            'STOP: Database transaction is not active.'
+        );
 
         // Isolated test configuration.
         // No production or development DB changes.

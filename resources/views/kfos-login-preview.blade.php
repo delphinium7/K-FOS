@@ -339,9 +339,10 @@
 
             <!-- Functional local test login form -->
             <form
+                id="kfos-login-form"
                 class="login-form"
                 method="POST"
-                action="{{ route('kfos.demo.login.submit') }}"
+                action="{{ !empty($kfosStageMode) ? route('kfos.auth.stage.login') : route('kfos.demo.login.submit') }}"
             >
 
                 @csrf
@@ -354,6 +355,10 @@
                     >
                         {{ $errors->first() }}
                     </p>
+                @endif
+
+                @if (!empty($kfosStageMode))
+                    <p class="login-error" id="kfos-stage-error" role="alert" aria-live="polite" hidden></p>
                 @endif
 
                 <!-- Employee ID -->
@@ -405,12 +410,21 @@
                 <!-- Remember me -->
                 <label class="remember-row">
 
-                    <input
-                        class="remember-checkbox"
-                        type="checkbox"
-                        disabled
-                        title="Remember me is not implemented in this prototype"
-                    >
+                    @if (!empty($kfosStageMode))
+                        <input
+                            class="remember-checkbox"
+                            type="checkbox"
+                            name="remember_me"
+                            value="1"
+                        >
+                    @else
+                        <input
+                            class="remember-checkbox"
+                            type="checkbox"
+                            disabled
+                            title="Remember me is not implemented in this prototype"
+                        >
+                    @endif
 
                     <span class="remember-text">
                         Remember me
@@ -438,5 +452,51 @@
 
     </main>
 
+    @if (!empty($kfosStageMode))
+    <script>
+    (() => {
+        const form = document.getElementById('kfos-login-form');
+        const error = document.getElementById('kfos-stage-error');
+        const submit = form?.querySelector('button[type="submit"]');
+        if (!form || !error || !submit) return;
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            error.hidden = true;
+            error.textContent = '';
+            submit.disabled = true;
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': form.querySelector('input[name="_token"]').value,
+                    },
+                    body: new FormData(form),
+                });
+                if (!response.ok) {
+                    error.textContent = response.status === 419
+                        ? 'Session expired. Refresh the page and try again.'
+                        : 'Invalid Employee ID or password.';
+                    error.hidden = false;
+                    return;
+                }
+                const result = await response.json();
+                if (result.authenticated === true) {
+                    window.location.assign(@json(route('kfos.auth.stage.ui.home')));
+                    return;
+                }
+                error.textContent = 'Unable to sign in. Please try again.';
+                error.hidden = false;
+            } catch (_) {
+                error.textContent = 'Unable to connect. Please try again.';
+                error.hidden = false;
+            } finally {
+                submit.disabled = false;
+            }
+        });
+    })();
+    </script>
+    @endif
 </body>
 </html>

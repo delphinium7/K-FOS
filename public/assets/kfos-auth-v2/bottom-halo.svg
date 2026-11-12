@@ -1,0 +1,17 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="348" height="348" viewBox="0 0 348 348" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="V2 Sphere | Bottom center | Halo" opacity="0.41" filter="url(#filter0_f_0_18)">
+<circle cx="174" cy="174" r="142" fill="url(#paint0_radial_0_18)"/>
+</g>
+<defs>
+<filter id="filter0_f_0_18" x="0" y="0" width="348" height="348" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="16" result="effect1_foregroundBlur_0_18"/>
+</filter>
+<radialGradient id="paint0_radial_0_18" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(174 174) scale(142)">
+<stop stop-color="#FF988D" stop-opacity="0.37"/>
+<stop offset="0.56" stop-color="#E277A2" stop-opacity="0.29"/>
+<stop offset="1" stop-color="#AD4166" stop-opacity="0"/>
+</radialGradient>
+</defs>
+</svg>

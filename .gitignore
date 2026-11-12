@@ -17,3 +17,19 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+
+# K-FOS: local development and transfer artifacts (Step 5AO)
+/kfos-step*.sh
+/kfos-*-batch.zip
+/kfos-*-batch/
+/kfos-step5o-cleanup/
+/kfos-step5p-readiness/
+/kfos-step5q-local-auth-stage/
+*.bak
+*.bak[0-9]*
+*.backup*
+*.before-*
+*.save
+*:Zone.Identifier
+.env.*
+!.env.example
