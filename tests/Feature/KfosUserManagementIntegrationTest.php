@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -30,6 +31,10 @@ class KfosUserManagementIntegrationTest extends TestCase
             'STOP: This test requires the kfos_test database.'
         );
 
+        // PHPUnit starts with APP_ENV=testing. The old test exercises the
+        // existing local-only development controller, so simulate local only
+        // within this test application. Never alter app routes or production.
+        $this->app->detectEnvironment(fn () => 'local');
         config([
             'app.debug' => true,
             'app.url' => 'http://localhost:8080',
@@ -37,12 +42,58 @@ class KfosUserManagementIntegrationTest extends TestCase
             'session.driver' => 'array',
         ]);
 
+        // routes/web.php was evaluated before setUp(), while env was testing.
+        // Register ONLY the existing development routes in PHPUnit's isolated
+        // in-memory router, mirroring KfosSessionIntegrationTest.
+        if (! Route::has('kfos.auth.dev.users.index')) {
+            Route::middleware('web')->group(static function (): void {
+                Route::get('/kfos-auth-dev/login',
+                    [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'show'])
+                    ->name('kfos.auth.dev.login');
+                Route::post('/kfos-auth-dev/login',
+                    [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'login'])
+                    ->name('kfos.auth.dev.submit');
+                Route::middleware(['auth:web', 'kfos.account'])->group(static function (): void {
+                    Route::get('/kfos-auth-dev/home',
+                        [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'home'])
+                        ->name('kfos.auth.dev.home');
+                    Route::post('/kfos-auth-dev/logout',
+                        [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'logout'])
+                        ->name('kfos.auth.dev.logout');
+                    Route::get('/kfos-auth-dev/users/create',
+                        [\App\Http\Controllers\Admin\KfosDevUserController::class, 'create'])
+                        ->name('kfos.auth.dev.users.create');
+                    Route::post('/kfos-auth-dev/users',
+                        [\App\Http\Controllers\Admin\KfosDevUserController::class, 'store'])
+                        ->name('kfos.auth.dev.users.store');
+                    Route::get('/kfos-auth-dev/users',
+                        [\App\Http\Controllers\Admin\KfosDevAccountStatusController::class, 'index'])
+                        ->name('kfos.auth.dev.users.index');
+                    Route::post('/kfos-auth-dev/users/{user}/status',
+                        [\App\Http\Controllers\Admin\KfosDevAccountStatusController::class, 'update'])
+                        ->whereNumber('user')->name('kfos.auth.dev.users.status');
+                });
+            });
+            app('router')->getRoutes()->refreshNameLookups();
+        }
         $this->assertTrue(app()->environment('local'));
+        $this->assertTrue(Route::has('kfos.auth.dev.users.index'));
+        $this->assertTrue(Route::has('kfos.auth.dev.users.status'));
+        $this->assertTrue(Route::has('kfos.auth.dev.users.store'));
     }
 
     private function createAdmin(): User
     {
-        return tap(User::query()->create([
+        // kfos_test may already contain the single KFOS_ADMIN development
+        // account. Never insert another account with the same login ID.
+        // DatabaseTransactions restores all test-only mutations afterward.
+        $this->assertSame('kfos_test', DB::connection()->getDatabaseName());
+        $this->assertGreaterThan(0, DB::connection()->transactionLevel());
+        $admin = User::query()->where('login_id', 'KFOS_ADMIN')->first();
+        if ($admin === null) {
+            $admin = new User();
+        }
+        return tap($admin->forceFill([
             'login_id' => 'KFOS_ADMIN',
             'name' => 'Synthetic Development Admin',
             'email' => null,

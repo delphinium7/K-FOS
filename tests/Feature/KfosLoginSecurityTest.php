@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class KfosLoginSecurityTest extends TestCase
@@ -38,6 +39,43 @@ class KfosLoginSecurityTest extends TestCase
             'kfos.allow_shared_dev_admin' => true,
             'session.driver' => 'array',
         ]);
+
+        // Local-development routes are normally mounted at Laravel boot,
+        // before PHPUnit setUp switches its environment. Register ONLY the
+        // existing development contract in this isolated test router.
+        // This does not change application routes or production activation.
+        if (! Route::has('kfos.auth.dev.home')) {
+            Route::middleware('web')->group(static function (): void {
+                Route::get('/kfos-auth-dev/login',
+                    [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'show'])
+                    ->name('kfos.auth.dev.login');
+                Route::post('/kfos-auth-dev/login',
+                    [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'login'])
+                    ->name('kfos.auth.dev.submit');
+                Route::middleware(['auth:web', 'kfos.account'])->group(static function (): void {
+                    Route::get('/kfos-auth-dev/home',
+                        [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'home'])
+                        ->name('kfos.auth.dev.home');
+                    Route::post('/kfos-auth-dev/logout',
+                        [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'logout'])
+                        ->name('kfos.auth.dev.logout');
+                    // Dev home template references these existing named routes.
+                    Route::get('/kfos-auth-dev/users/create',
+                        [\App\Http\Controllers\Admin\KfosDevUserController::class, 'create'])
+                        ->name('kfos.auth.dev.users.create');
+                    Route::post('/kfos-auth-dev/users',
+                        [\App\Http\Controllers\Admin\KfosDevUserController::class, 'store'])
+                        ->name('kfos.auth.dev.users.store');
+                    Route::get('/kfos-auth-dev/users',
+                        [\App\Http\Controllers\Admin\KfosDevAccountStatusController::class, 'index'])
+                        ->name('kfos.auth.dev.users.index');
+                    Route::post('/kfos-auth-dev/users/{user}/status',
+                        [\App\Http\Controllers\Admin\KfosDevAccountStatusController::class, 'update'])
+                        ->whereNumber('user')->name('kfos.auth.dev.users.status');
+                });
+            });
+            app('router')->getRoutes()->refreshNameLookups();
+        }
 
         // Only bypass CSRF within this test class.
         $this->withoutMiddleware(
@@ -70,7 +108,16 @@ class KfosLoginSecurityTest extends TestCase
 
     private function createAdmin(bool $active = true): User
     {
-        $admin = new User();
+        // The persistent kfos_test database may already contain the original
+        // local KFOS_ADMIN identity. Reuse its record transactionally instead
+        // of violating users_login_id_unique with a duplicate fixture.
+        // DatabaseTransactions restores its original state after each test.
+        $this->assertSame('kfos_test', DB::connection()->getDatabaseName());
+        $this->assertGreaterThan(0, DB::connection()->transactionLevel());
+        $admin = User::query()->where('login_id', 'KFOS_ADMIN')->first();
+        if ($admin === null) {
+            $admin = new User();
+        }
 
         $admin->forceFill([
             'login_id' => 'KFOS_ADMIN',
