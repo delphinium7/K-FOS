@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -47,6 +48,50 @@ class KfosSessionIntegrationTest extends TestCase
         $this->withoutMiddleware(
             VerifyCsrfToken::class
         );
+
+        // routes/web.php is evaluated BEFORE this test's setUp() switches
+        // the application to local mode. Register only the original
+        // development route contracts in this isolated PHPUnit router.
+        // The real application route guards are NOT changed or relaxed.
+        if (! Route::has('kfos.auth.dev.home')) {
+            Route::middleware('web')->group(static function (): void {
+                Route::get('/kfos-auth-dev/login',
+                    [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'show'])
+                    ->name('kfos.auth.dev.login');
+                Route::post('/kfos-auth-dev/login',
+                    [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'login'])
+                    ->name('kfos.auth.dev.submit');
+                Route::middleware(['auth:web', 'kfos.account'])->group(static function (): void {
+                    Route::get('/kfos-auth-dev/home',
+                        [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'home'])
+                        ->name('kfos.auth.dev.home');
+                    Route::post('/kfos-auth-dev/logout',
+                        [\App\Http\Controllers\Auth\KfosDevLoginController::class, 'logout'])
+                        ->name('kfos.auth.dev.logout');
+                    // The development home page renders Add Test User and
+                    // Manage Test Users links. Its view requires both named
+                    // routes to be present even when no user is created.
+                    Route::get('/kfos-auth-dev/users/create',
+                        [\App\Http\Controllers\Admin\KfosDevUserController::class, 'create'])
+                        ->name('kfos.auth.dev.users.create');
+                    Route::post('/kfos-auth-dev/users',
+                        [\App\Http\Controllers\Admin\KfosDevUserController::class, 'store'])
+                        ->name('kfos.auth.dev.users.store');
+                    Route::get('/kfos-auth-dev/users',
+                        [\App\Http\Controllers\Admin\KfosDevAccountStatusController::class, 'index'])
+                        ->name('kfos.auth.dev.users.index');
+                    Route::post('/kfos-auth-dev/users/{user}/status',
+                        [\App\Http\Controllers\Admin\KfosDevAccountStatusController::class, 'update'])
+                        ->whereNumber('user')->name('kfos.auth.dev.users.status');
+                });
+            });
+            app('router')->getRoutes()->refreshNameLookups();
+        }
+        $this->assertTrue(Route::has('kfos.auth.dev.home'));
+        $this->assertTrue(Route::has('kfos.auth.dev.users.index'));
+        $this->assertTrue(Route::has('kfos.auth.dev.users.create'));
+        $this->assertTrue(Route::has('kfos.auth.dev.users.store'));
+        $this->assertTrue(Route::has('kfos.auth.dev.logout'));
     }
 
     private function assertFixtureTransaction(): void

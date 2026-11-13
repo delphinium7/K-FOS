@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
  * Do not mount until the genuine employee login and approved Security UI
  * are reconciled with current CDR authorization and CSRF requirements.
  */
-Route::middleware(['web', 'auth:web', 'kfos.account'])
+Route::middleware(['web', 'auth:web', 'kfos.account', \App\Http\Middleware\KfosFreshSessionGate::class])
     ->prefix('kfos/security/users')
     ->name('kfos.security.users.')
     ->group(function (): void {

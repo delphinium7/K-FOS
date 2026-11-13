@@ -31,7 +31,9 @@
 <header><div class="small">SECURITY / ROLES &amp; PERMISSIONS</div>
   <h1>Roles &amp; Permissions</h1>
   <div class="small">Protected local UI integration preview · current operational role and centrally managed permissions</div>
+  @if($isAdministrator || app(\App\Services\Security\KfosAuthorization::class)->allows(\Illuminate\Support\Facades\Auth::guard('web')->user(), 'security.accounts.status'))
   <a href="{{ route('kfos.security.users.ui.index') }}">Back to User Management</a>
+  @endif
 </header>
 <main>
   <div class="panel" role="note">One operational role per employee. Protected Security Management permissions and assignment <em>into</em> protected roles require a genuine System Administrator. Every committed change is audited and qualifying changes revoke sessions.</div>

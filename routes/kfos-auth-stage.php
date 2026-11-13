@@ -22,6 +22,7 @@ Route::prefix('kfos-auth-stage')
             KfosRestoreRememberedSession::class,
             'auth:web',
             'kfos.account',
+            \App\Http\Middleware\KfosFreshSessionGate::class,
         ])->group(function (): void {
             Route::get('/session', function () {
                 return response()->json([
@@ -48,7 +49,9 @@ Route::prefix('kfos-auth-stage')
             KfosRestoreRememberedSession::class,
             'auth:web',
             'kfos.account',
-        ])->get('/ui/home', function () {
-            return view('auth.kfos-stage-home');
-        })->name('ui.home');
+            \App\Http\Middleware\KfosFreshSessionGate::class,
+        ])->get('/ui/home', [
+            \App\Http\Controllers\Security\KfosAuthenticatedHomeController::class,
+            'show',
+        ])->name('ui.home');
     });

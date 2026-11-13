@@ -59,6 +59,13 @@ class KfosProductionHttpIntegrationTest extends TestCase
             'is_development_only' => $dev,
             'session_version' => 1,
         ])->save();
+        // Genuine universal membership; legacy is_system_admin is insufficient.
+        if ($admin && ! $dev) {
+            DB::table('kfos_system_administrators')->insert([
+                'user_id' => $user->id,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
         return $user;
     }
 
@@ -122,7 +129,7 @@ class KfosProductionHttpIntegrationTest extends TestCase
     {
         $target = $this->employee('HTTP_INTEG_004');
         $ordinary = $this->employee('HTTP_USER_004');
-        $shared = $this->employee('KFOS_ADMIN', true, true);
+        $shared = $this->employee('T5AQ_DEV_' . bin2hex(random_bytes(8)), true, true);
         $this->login($ordinary->login_id)->assertOk();
         $this->postJson(
             'http://localhost:8080/__kfos_auth_integration/restore/'.$target->id,

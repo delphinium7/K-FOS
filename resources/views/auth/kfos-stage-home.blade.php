@@ -12,7 +12,18 @@
     <h2>Local Authentication Test</h2>
     <p>Authenticated session established.</p>
     <p>Employee: <strong>{{ auth('web')->user()->login_id }}</strong></p>
-    <p style="font-size:13px;color:#6a5962">This page verifies authentication only. It is not the production dashboard.</p>
+    <p style="font-size:13px;color:#6a5962">This is the local authenticated integration preview, not the production dashboard.</p>
+    @if($canManageUsers || $canManageRoles)
+    <section aria-labelledby="kfos-security-links" style="padding:16px;border:1px solid #eed7df;border-radius:14px;background:#fff8fa;margin:18px 0">
+        <h3 id="kfos-security-links" style="margin:0 0 8px;color:#673149">Security Management</h3>
+        <p style="font-size:13px;margin:0 0 12px;color:#6a5962">Only functions allowed by your current operational role or genuine System Administrator membership are shown.</p>
+        @if($canManageUsers)<p><a href="{{ route('kfos.security.users.ui.index') }}" style="color:#a63861;font-weight:650">Open User Management</a></p>@endif
+        @if($canAddUser)<p><a href="{{ route('kfos.security.users.ui.create') }}" style="color:#a63861;font-weight:650">Create Employee Login</a></p>@endif
+        @if($canManageRoles)<p><a href="{{ route('kfos.security.roles.ui.index') }}" style="color:#a63861;font-weight:650">Open Roles &amp; Permissions</a></p>@endif
+    </section>
+    @else
+    <p id="kfos-security-no-access" style="font-size:13px;color:#6a5962">No Security Management navigation is assigned to this account.</p>
+    @endif
     <form id="kfos-stage-logout" action="{{ route('kfos.auth.stage.logout') }}" method="POST">
         @csrf
         <button type="submit" style="border:0;border-radius:12px;background:#a63861;color:white;padding:12px 20px;cursor:pointer">Sign out</button>

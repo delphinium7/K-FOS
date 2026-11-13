@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\Security\KfosAuthorization;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -14,6 +15,18 @@ use Illuminate\Support\Facades\DB;
 final class KfosRememberedDeviceService
 {
     public const DAYS = 90;
+
+    public function __construct(private KfosAuthorization $authorization) {}
+
+    private function employmentEligible(User $user): bool
+    {
+        if ($user->employee_id === null) {
+            return false;
+        }
+        $employee = DB::table('employees')->where('id', $user->employee_id)->first(['is_active']);
+        return $employee !== null && ((bool) $employee->is_active
+            || $this->authorization->isSystemAdministrator($user));
+    }
 
     /**
      * Call ONLY after a successful fresh Employee ID/password login.
@@ -29,7 +42,7 @@ final class KfosRememberedDeviceService
         // Fresh authoritative state: refuse synthetic/shared, inactive or unlinked identities.
         $fresh = User::query()->find($user->id);
         if ($fresh === null || ! $fresh->is_active || $fresh->is_development_only ||
-            $fresh->employee_id === null) {
+            $fresh->employee_id === null || ! $this->employmentEligible($fresh)) {
             return null;
         }
 
@@ -78,7 +91,8 @@ $user = User::query()->find($grant->user_id);
 
         if ($user === null || ! $user->is_active || $user->is_development_only ||
             $user->employee_id === null ||
-            (int) $user->session_version !== (int) $grant->session_version_at_issue) {
+            (int) $user->session_version !== (int) $grant->session_version_at_issue
+            || ! $this->employmentEligible($user)) {
             return null;
         }
 

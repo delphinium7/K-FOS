@@ -22,20 +22,25 @@ final class KfosAuthorization
         return true;
     }
 
-    private function eligible(User $user): bool
+    private function eligible(User $user, bool $requireActiveEmployment = true): bool
     {
-        return $user->exists && DB::table('users as u')
+        if (! $user->exists) {
+            return false;
+        }
+        $query = DB::table('users as u')
             ->join('employees as e', 'e.id', '=', 'u.employee_id')
             ->where('u.id', $user->getKey())
             ->where('u.is_active', true)
-            ->where('u.is_development_only', false)
-            ->where('e.is_active', true)
-            ->exists();
+            ->where('u.is_development_only', false);
+        if ($requireActiveEmployment) {
+            $query->where('e.is_active', true);
+        }
+        return $query->exists();
     }
 
     public function isSystemAdministrator(User $user): bool
     {
-        if (! $this->schemaReady() || ! $this->eligible($user)) {
+        if (! $this->schemaReady() || ! $this->eligible($user, false)) {
             return false;
         }
 
@@ -51,7 +56,7 @@ final class KfosAuthorization
 
     public function allows(User $user, string $permissionCode): bool
     {
-        if ($permissionCode === '' || ! $this->schemaReady() || ! $this->eligible($user)) {
+        if ($permissionCode === '' || ! $this->schemaReady()) {
             return false;
         }
 
@@ -60,8 +65,13 @@ final class KfosAuthorization
             return false;
         }
 
+        // The genuine universal administrator is the ONLY exception to the
+        // original Employee Master's Employment Inactive restriction.
         if ($this->isSystemAdministrator($user)) {
             return true;
+        }
+        if (! $this->eligible($user, true)) {
+            return false;
         }
 
         return DB::table('kfos_operational_role_assignments as a')

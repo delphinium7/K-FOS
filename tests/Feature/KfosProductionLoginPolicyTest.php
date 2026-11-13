@@ -36,6 +36,12 @@ class KfosProductionLoginPolicyTest extends TestCase
             'is_active' => true, 'is_system_admin' => $admin,
             'is_development_only' => false, 'session_version' => 1,
         ])->save();
+        if ($admin) {
+            DB::table('kfos_system_administrators')->insert([
+                'user_id' => $user->id,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
         return $user;
     }
 
@@ -76,6 +82,7 @@ class KfosProductionLoginPolicyTest extends TestCase
     {
         $user = $this->employee('POLICY_TEST_003');
         $admin = $this->employee('POLICY_ADMIN_003', true);
+        $this->actingAs($admin, 'web')->withSession(['kfos_session_version' => 1]);
         $service = app(KfosEmployeeLoginSecurity::class);
         for ($i = 0; $i < 5; $i++) {
             $service->verifyCredentials($user->login_id, 'wrong-password');

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Services\Auth\KfosEmployeeLoginSecurity;
+use App\Services\Auth\KfosCredentialSessionIssuer;
 use App\Services\Auth\KfosRememberedDeviceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,8 +22,7 @@ final class KfosRememberBrowserController extends Controller
 
     public function login(
         Request $request,
-        KfosEmployeeLoginSecurity $security,
-        KfosRememberedDeviceService $remembered
+        KfosCredentialSessionIssuer $issuer
     ): JsonResponse {
         $input = $request->validate([
             'employee_id' => ['required', 'string', 'max:100'],
@@ -31,24 +30,14 @@ final class KfosRememberBrowserController extends Controller
             'remember_me' => ['sometimes', 'boolean'],
         ]);
 
-        $user = $security->verifyCredentials($input['employee_id'], $input['password']);
-        if ($user === null) {
+        // The issuer verifies the original Master and account at issuance,
+        // attaches the session and writes success audit transactionally.
+        $issued = $issuer->issue($request, $input['employee_id'], $input['password'],
+            (bool) ($input['remember_me'] ?? false));
+        if ($issued === null) {
             return response()->json(['message' => 'Invalid Employee ID or password.'], 422);
         }
-
-        // Never use Laravel's rolling remember_token mechanism.
-        Auth::guard('web')->login($user, false);
-        $request->session()->regenerate();
-        $request->session()->forget('kfos_remember_restored_hash');
-        $request->session()->put('kfos_session_version', (int) $user->session_version);
-
-        // Replace/revoke a previous remembered credential for this browser on a new
-        // successful password login, even when the new opt-in is unchecked.
-        $previousToken = $request->cookie(self::COOKIE);
-        if (is_string($previousToken)) {
-            $remembered->revokeOne($previousToken);
-        }
-        $token = $remembered->issueAfterCredentialLogin($user, (bool) ($input['remember_me'] ?? false));
+        $token = $issued['token'];
         $response = response()->json(['authenticated' => true, 'remembered' => $token !== null]);
 
         // A fresh password login must remove an older device cookie when opt-in is unchecked.
