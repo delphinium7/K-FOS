@@ -46,10 +46,21 @@ final class KfosRememberedDeviceService
             return null;
         }
 
+        // Step 8: opt-in remembered grant cannot outlive its issuing epoch.
+        $epochAtIssue = null;
+        if (config('kfos_step8.epoch_admission_enabled', false)) {
+            $epochState = DB::table('kfos_account_security_epochs')
+                ->where('user_id', $fresh->id)->lockForUpdate()->first();
+            if ($epochState === null || (bool) $epochState->revocation_pending) {
+                return null;
+            }
+            $epochAtIssue = (int) $epochState->epoch;
+        }
+
         // 256 bits of randomness, base64url encoding, no embedded identifiers.
         $token = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
         $issued = CarbonImmutable::now('UTC');
-        DB::table('kfos_remembered_devices')->insert([
+        $grantFields = [
             'user_id' => $fresh->id,
             'token_hash' => hash('sha256', $token),
             'session_version_at_issue' => (int) $fresh->session_version,
@@ -58,7 +69,11 @@ final class KfosRememberedDeviceService
             'revoked_at' => null,
             'created_at' => $issued,
             'updated_at' => $issued,
-        ]);
+        ];
+        if ($epochAtIssue !== null) {
+            $grantFields['security_epoch_at_issue'] = $epochAtIssue;
+        }
+        DB::table('kfos_remembered_devices')->insert($grantFields);
         return $token;
     }
 
@@ -96,7 +111,36 @@ $user = User::query()->find($grant->user_id);
             return null;
         }
 
+        if (config('kfos_step8.epoch_admission_enabled', false)) {
+            // Old/unstamped or pending grants fail closed; never renew TTL.
+            $issuedEpoch = $grant->security_epoch_at_issue ?? null;
+            if ($issuedEpoch === null) {
+                return null;
+            }
+            $epochState = DB::table('kfos_account_security_epochs')
+                ->where('user_id', $user->id)->first(['epoch', 'revocation_pending']);
+            if ($epochState === null || (bool) $epochState->revocation_pending
+                || (int) $issuedEpoch !== (int) $epochState->epoch) {
+                return null;
+            }
+        }
         return $user;
+    }
+
+    /**
+     * The original epoch of a still-valid remembered credential. Never
+     * stamp a current/new epoch onto a token issued under an older epoch.
+     */
+    public function boundEpochForValidToken(string $token): ?int
+    {
+        if (! config('kfos_step8.epoch_admission_enabled', false)
+            || $this->validate($token) === null) {
+            return null;
+        }
+        $issued = DB::table('kfos_remembered_devices')
+            ->where('token_hash', hash('sha256', $token))
+            ->whereNull('revoked_at')->value('security_epoch_at_issue');
+        return $issued === null ? null : (int) $issued;
     }
 
     /** Remove only the initiating device's remembered credential. */

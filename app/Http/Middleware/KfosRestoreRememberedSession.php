@@ -43,10 +43,19 @@ final class KfosRestoreRememberedSession
         } elseif ($user === null && $token !== '') {
             // No authenticated session: attempt a single cookie-based restoration.
             $valid = $this->remembered->validate($token);
-            if ($valid !== null) {
+            $epochRequired = config('kfos_step8.epoch_admission_enabled', false);
+            // Only the ORIGINAL grant generation is a valid restoration proof.
+            $issuedEpoch = $epochRequired
+                ? $this->remembered->boundEpochForValidToken($token) : null;
+            if ($valid !== null && (! $epochRequired || $issuedEpoch !== null)) {
                 Auth::guard('web')->login($valid, false);
                 $request->session()->regenerate();
                 $request->session()->put('kfos_session_version', (int) $valid->session_version);
+                if ($issuedEpoch !== null) {
+                    $request->session()->put('kfos_security_epoch', $issuedEpoch);
+                } else {
+                    $request->session()->forget('kfos_security_epoch');
+                }
                 $request->session()->put('kfos_remember_restored_hash', hash('sha256', $token));
             }
         }

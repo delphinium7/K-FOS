@@ -66,6 +66,22 @@ final class KfosCredentialSessionIssuer
                     && ((bool) $employee->is_active
                         || $this->authorization->isSystemAdministrator($fresh));
 
+                // STEP 8: opt-in final original-account epoch verification.
+                // Compiled OFF until HR writer, backfill and release gates exist.
+                // The same transaction locks the epoch before success audit or session.
+                $epochAtIssue = null;
+                $denialReason = 'final_eligibility_mismatch';
+                if ($eligible && config('kfos_step8.epoch_admission_enabled', false)) {
+                    $epochState = DB::table('kfos_account_security_epochs')
+                        ->where('user_id', $fresh->getKey())->lockForUpdate()->first();
+                    if ($epochState === null || (bool) $epochState->revocation_pending) {
+                        $eligible = false;
+                        $denialReason = 'epoch_missing_or_revocation_pending';
+                    } else {
+                        $epochAtIssue = (int) $epochState->epoch;
+                    }
+                }
+
                 if (! $eligible) {
                     // This is a true post-credential eligibility denial, not
                     // a wrong password and not a fifth-failure increment.
@@ -74,7 +90,7 @@ final class KfosCredentialSessionIssuer
                         'target_user_id' => $verified->getKey(),
                         'event_type' => 'employee_login_session_issuance_denied',
                         'result' => 'failed',
-                        'details' => json_encode(['reason' => 'final_eligibility_mismatch'], JSON_THROW_ON_ERROR),
+                        'details' => json_encode(['reason' => $denialReason], JSON_THROW_ON_ERROR),
                         'is_shared_dev_identity' => false,
                         'created_at' => now(),
                     ]);
@@ -116,6 +132,12 @@ final class KfosCredentialSessionIssuer
                 $request->session()->regenerate();
                 $request->session()->forget('kfos_remember_restored_hash');
                 $request->session()->put('kfos_session_version', (int) $fresh->session_version);
+                if ($epochAtIssue !== null) {
+                    $request->session()->put('kfos_security_epoch', $epochAtIssue);
+                } else {
+                    // A stale test-only marker may never become an issuance proof.
+                    $request->session()->forget('kfos_security_epoch');
+                }
 
                 return ['user_id' => (int) $fresh->getKey(), 'token' => $token];
             }, 3);
